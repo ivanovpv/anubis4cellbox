@@ -118,6 +118,7 @@ public class CipherAnubis extends Cipher
     }
 
 
+    // runs 1st original 320 bit test vector (look in ext/anubis320-test-vectors.txt)
     public static void testStandard320()
     {
         String s;
@@ -132,18 +133,12 @@ public class CipherAnubis extends Cipher
             buffer[i]=0;
         s=ByteUtils.bytesToHex(buffer);
         System.out.println("Buffer: "+s);
-        long start=System.currentTimeMillis();
         ebuf=aw.encrypt(buffer);
-        long end=System.currentTimeMillis();
         s= ByteUtils.bytesToHex(ebuf);
         System.out.println("Cipher: "+s);
-        System.out.println(" - encrypted in "+(end-start)+" ms");
-        start=System.currentTimeMillis();
         dbuf=aw.decrypt(ebuf);
-        end=System.currentTimeMillis();
         s=ByteUtils.bytesToHex(dbuf);
         System.out.println("Decipher: "+s);
-        System.out.println(" - decrypted in "+(end-start)+" ms");
     }
     /**
      * Rounds buffer in accordance with Anubis padding policy (16 bytes)
@@ -231,11 +226,43 @@ public class CipherAnubis extends Cipher
         System.out.println("Standard="+(end-start));
     }
 
-    // runs original 320 bit test vector
+    public static boolean testFull(String password)
+    {
+        Random random=new Random(System.currentTimeMillis());
+        byte[] buffer=new byte[100000];
+        random.nextBytes(buffer); //filling with random values
+        byte[] orgBuffer=new byte[buffer.length];
+        System.arraycopy(buffer, 0, orgBuffer, 0, buffer.length);
+        Salt salt=new Salt(10);
+        String newPassword=password+salt.getSaltString();
+        System.out.println("Salted password is: "+newPassword);
+
+
+        Cipher cipher=new CipherAnubisRandomized(newPassword, Cipher.DIGEST_WHIRLPOOL);
+        long start=System.currentTimeMillis();
+        byte[] encBuffer=cipher.encrypt(buffer);
+        long mid=System.currentTimeMillis();
+        byte[] decBuffer=cipher.decrypt(encBuffer);
+        long end=System.currentTimeMillis();
+
+        System.out.println(buffer.length+" - bytes encrypted in "+(mid-start)+" ms");
+        System.out.println(encBuffer.length+" - bytes decrypted in "+(end-mid)+" ms");
+
+        for(int i=0; i < buffer.length; i++)
+        {
+            if(orgBuffer[i]!=decBuffer[i])
+                return false;
+        }
+        return true;
+    }
+
     public static void main(String[] args)
     {
         testStandard320();
-        //testRNG();
+        if(testFull("examplePassword"))
+            System.err.println("Test passed!");
+        else
+            System.err.println("Test failed!");
     }
 }
 
